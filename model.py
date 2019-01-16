@@ -3,6 +3,8 @@
 import numpy as np
 import pandas as pd
 
+from sklearn.metrics import mean_squared_error
+
 class Layer:
     def __init__(self):
         pass
@@ -37,37 +39,15 @@ class Dense(Layer):
         return np.dot(input, self.w) + self.b
     
     def backward(self, input, grad):
-        grad_input = np.dot(grad, self.w.T)
+        grad_input = -np.dot(grad, self.w.T)
         
-        grad_w = np.dot(input.T, grad)
+        grad_w = -np.dot(input.T, grad)/input.shape[0]
         grad_b = np.sum(grad, axis=0)
         
         self.w = self.w - self.eta * grad_w
         self.b = self.b - self.eta * grad_b
         
         return grad_input
-
-class SoftmaxCrossEntropy(Layer):
-    def __init__(self):
-        pass
-    
-    def forward(self, logits, y):
-        m = logits.shape[0]
-        
-        l = logits[np.arange(m),y]
-        e = -l + np.log(np.sum(np.exp(logits), axis=-1))
-        
-        return e
-
-    def backward(self, logits, y):
-        m = logits.shape[0]
-        
-        ones = np.zeros_like(logits)
-        ones[np.arange(m),y] = 1
-        
-        softmax = np.exp(logits) / np.exp(logits).sum(axis=-1,keepdims=True)
-        
-        return (-ones + softmax) / m
 
 class Sequential(Layer):
     def __init__(self):
@@ -92,6 +72,28 @@ class Sequential(Layer):
         
         return grad
 
+class SoftmaxCrossEntropy(Layer):
+    def __init__(self):
+        pass
+    
+    def forward(self, logits, y):
+        m = logits.shape[0]
+        
+        l = logits[np.arange(m),y]
+        e = -l + np.log(np.sum(np.exp(logits), axis=-1))
+        
+        return e
+
+    def backward(self, logits, y):
+        m = logits.shape[0]
+        
+        ones = np.zeros_like(logits)
+        ones[np.arange(m),y] = 1
+        
+        softmax = np.exp(logits) / np.exp(logits).sum(axis=-1,keepdims=True)
+        
+        return (-ones + softmax) / m
+
 class StochasticGradientDescent:
     def __init__(self, model, loss, batch_size=64, epochs=10):
         self.model = model
@@ -114,13 +116,14 @@ class StochasticGradientDescent:
             
             batch_num += 1
 
-    def fit(self, X, y):
+    def fit(self, X_train, y_train, X_val, y_val):
         for epoch in range(self.epochs):
             losses = []
+            acc = []
             
-            for X_batch, y_batch, batch_num in self._iterate_minibatch(X, y):
+            for X_batch, y_batch, batch_num in self._iterate_minibatch(X_train, y_train):
                 logits = self.model.forward(X_batch)
-                
+                            
                 loss = self.loss.forward(logits, y_batch)
                 loss_grad = self.loss.backward(logits, y_batch)
                 
@@ -129,10 +132,21 @@ class StochasticGradientDescent:
                 mean_loss = np.mean(loss)
                 losses.append(mean_loss)
                 
-                print("Epoch: {}, Batch: {}, Avg Loss: {}".format(epoch, batch_num, mean_loss))
+                error = mean_squared_error(y_batch, np.argmax(logits, axis=1))
+                acc.append(error)
+                
+                #print("Epoch: {}, Batch: {}, Avg Loss: {}, Error: {}".format(epoch, batch_num, mean_loss, error))
         
-            print("Epoch {} finished! Avg Loss: ".format(epoch, np.mean(losses)))            
-        
+            acc = []
+            
+            for X_batch, y_batch, batch_num in self._iterate_minibatch(X_val, y_val):                
+                logits = self.model.forward(X_batch)
+                error = mean_squared_error(y_batch, np.argmax(logits, axis=1))
+                                
+                acc.append(error)
+            
+            print("Epoch {} finished! Avg Loss: {}, Val Error: {}".format(epoch, np.mean(losses), np.mean(acc)))
+
         print("Model Trained!")
         
         return self.model
@@ -160,13 +174,19 @@ def train():
     
     loss = SoftmaxCrossEntropy()
     
-    sgd = StochasticGradientDescent(model, loss)
-    sgd.fit(X_train, y_train)
+    sgd = StochasticGradientDescent(model, loss, epochs=30)
+    sgd.fit(X_train, y_train, X_val, y_val)
     
     return model
 
 if __name__ == '__main__':
     train()
+
+
+
+
+
+
 
 
 
