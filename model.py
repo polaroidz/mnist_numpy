@@ -87,7 +87,7 @@ class Sequential(Layer):
         return self.activations[-1]
 
     def backward(self, input, grad):
-        for i in range(len(self.network)):
+        for i in reversed(range(len(self.network))):
             grad = self.network[i].backward(self.activations[i], grad)
         
         return grad
