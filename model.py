@@ -5,6 +5,9 @@ import pandas as pd
 
 from sklearn.metrics import mean_squared_error
 
+import warnings # just for ignoring annoying warnings
+warnings.filterwarnings('ignore')
+
 class Layer:
     def __init__(self):
         pass
@@ -30,18 +33,21 @@ class ReLU(Layer):
         return grad * r_grad
 
 class Dense(Layer):
-    def __init__(self, in_size, out_size, eta=0.1):
-        self.w = np.random.randn(in_size, out_size) * 0.01
+    def __init__(self, in_size, out_size, eta=0.1, reg=0.0001):
+        # Xavier weight initialization
+        self.w = np.random.normal(size=(in_size, out_size), scale=np.sqrt(1 /in_size))
         self.b = np.zeros(out_size)
         self.eta = eta
+        self.reg = reg
 
     def forward(self, input):
         return np.dot(input, self.w) + self.b
     
     def backward(self, input, grad):
-        grad_input = -np.dot(grad, self.w.T)
+        grad_input = np.dot(grad, self.w.T)
         
-        grad_w = -np.dot(input.T, grad)/input.shape[0]
+        # Regularization
+        grad_w = np.dot(input.T, grad) + (2 * self.reg * self.w) 
         grad_b = np.sum(grad, axis=0)
         
         self.w = self.w - self.eta * grad_w
@@ -135,7 +141,7 @@ class StochasticGradientDescent:
                 error = mean_squared_error(y_batch, np.argmax(logits, axis=1))
                 acc.append(error)
                 
-                #print("Epoch: {}, Batch: {}, Avg Loss: {}, Error: {}".format(epoch, batch_num, mean_loss, error))
+                print("Epoch: {}, Batch: {}, Avg Loss: {}, Error: {}".format(epoch, batch_num, mean_loss, error))
         
             acc = []
             
@@ -166,11 +172,15 @@ def train():
     
     model = Sequential()
     
-    model.add(Dense(784, 100))
+    model.add(Dense(784, 50))
     model.add(ReLU())
-    model.add(Dense(100, 200))
+    model.add(Dense(50, 100))
     model.add(ReLU())
-    model.add(Dense(200,10))
+    model.add(Dense(100, 100))
+    model.add(ReLU())
+    model.add(Dense(100, 100))
+    model.add(ReLU())
+    model.add(Dense(100,10))
     
     loss = SoftmaxCrossEntropy()
     
