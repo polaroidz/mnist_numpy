@@ -73,8 +73,11 @@ class Sequential(Layer):
         return self.activations[-1]
 
     def backward(self, input, grad):
-        for i in reversed(range(len(self.network))):
-            grad = self.network[i].backward(self.activations[i], grad)
+        del self.activations[-1]
+        
+        for layer in reversed(self.network):
+            grad = layer.backward(self.activations[-1], grad)
+            del self.activations[-1]
         
         return grad
 
@@ -172,15 +175,11 @@ def train():
     
     model = Sequential()
     
-    model.add(Dense(784, 50))
-    model.add(ReLU())
-    model.add(Dense(50, 100))
-    model.add(ReLU())
-    model.add(Dense(100, 100))
-    model.add(ReLU())
-    model.add(Dense(100, 100))
-    model.add(ReLU())
-    model.add(Dense(100,10))
+    model.add(Dense(784, 50))#0
+    model.add(ReLU())#1
+    model.add(Dense(50, 100))#2
+    model.add(ReLU())#7
+    model.add(Dense(100,10))#8
     
     loss = SoftmaxCrossEntropy()
     
